@@ -1,0 +1,82 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+
+trigger:
+- master
+
+variables:
+  dotNetSdk: 5.x
+  buildConfiguration: Release
+
+stages:
+  - stage: Prepare
+    displayName: Prepare dependencies
+    jobs:
+    - job: Install_dotNet5
+      displayName: Install dotnet $(dotNetSdk)
+      steps:
+        - task: UseDotNet@2
+          displayName: Use dotNet $(dotNetSdk)
+          inputs:
+            version: $(dotNetSdk)
+
+  - stage: "Build"
+    displayName: "Build source code"
+    jobs:
+      - job: Build
+        displayName: Build dotnet app
+        pool:
+          vmImage: ubuntu-latest 
+
+        steps:
+          - task: DotNetCoreCLI@2
+            displayName: 'Restore project dependencies'
+            inputs:
+              command: 'restore'
+              arguments: '--configuration $(buildConfiguration)'
+              projects: '**/*.csproj'
+
+          - task: DotNetCoreCLI@2
+            displayName: Build project
+            inputs:
+              command: 'build'
+              arguments: '--configuration $(buildConfiguration)'
+              projects: '**/*.csproj'
+
+          - task: DotNetCoreCLI@2
+            displayName: 'Publish project'
+            inputs:
+              command: 'publish'
+              projects: '**/*.csproj'
+              publishWebProjects: false
+              arguments: '--no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
+              zipAfterPublish: true
+            
+          - publish: '$(Build.ArtifactStagingDirectory)'
+            artifact: drop
+  
+  # - stage: TestDeploy
+  #   displayName: "Deploy to Test"
+  #   jobs:
+  #     - job: Deploy
+  #       displayName: Deploy dotnet app
+  #       pool:
+  #         vmImage: ubuntu-latest 
+  #       steps:
+  #       - download: current
+  #         artifact: drop
+        
+  #       - script: 'ls -la $(Pipeline.Workspace)/drop/$(buildConfiguration)/'
+          
+  #       - task: AzureRmWebAppDeployment@4
+  #         inputs:
+  #           ConnectionType: 'AzureRM'
+  #           azureSubscription: 'Azure Playground(c84ad6f8-b8cb-4d5d-8e4a-b38fa120508c)'
+  #           appType: 'webApp'
+  #           WebAppName: 'pipwebapp'
+  #           package: $(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip
+
+
